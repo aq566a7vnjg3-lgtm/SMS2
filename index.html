@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>SMS QRコード作成</title>
+  <script src="./qrcode.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #17202a;
+      --muted: #697586;
+      --line: #d7dde5;
+      --accent: #0b6bcb;
+      --accent-deep: #084f95;
+      --warn-bg: #fff6db;
+      --warn-line: #e2b940;
+      --ok-bg: #eaf7ef;
+      --ok-line: #79bc8b;
+      --bad: #b42318;
+      --shadow: 0 16px 40px rgba(17, 24, 39, .08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 24px 0 32px;
+    }
+
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 36px);
+      line-height: 1.15;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(330px, .9fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .form-panel {
+      padding: 20px;
+    }
+
+    .qr-panel {
+      padding: 20px;
+      position: sticky;
+      top: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    label,
+    .label {
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .assist {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    input[type="tel"],
+    input[type="text"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid #b8c2cf;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    input[type="tel"],
+    input[type="text"],
+    input[type="url"] {
+      min-height: 54px;
+      padding: 10px 14px;
+      font-weight: 700;
+    }
+
+    input[type="tel"] {
+      font-size: 24px;
+    }
+
+    input[type="text"],
+    input[type="url"] {
+      font-size: 16px;
+    }
+
+    textarea {
+      min-height: 300px;
+      resize: vertical;
+      padding: 14px;
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    select {
+      min-height: 44px;
+      padding: 8px 12px;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(11, 107, 203, .16);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .meta-line {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 8px 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status {
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+      padding: 9px 11px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #f9fafb;
+      font-weight: 700;
+    }
+
+    .status.ok {
+      border-color: var(--ok-line);
+      background: var(--ok-bg);
+      color: #20603a;
+    }
+
+    .status.warn {
+      border-color: var(--warn-line);
+      background: var(--warn-bg);
+      color: #6b5200;
+    }
+
+    .status.bad {
+      border-color: #f1a29b;
+      background: #fff1f0;
+      color: var(--bad);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      min-height: 46px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 9px 16px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: var(--accent-deep);
+    }
+
+    button.secondary {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    button.secondary:hover {
+      background: #f3f5f8;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: .55;
+    }
+
+    .qr-box {
+      display: grid;
+      place-items: center;
+      min-height: 370px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .qr-box svg {
+      width: min(100%, 360px);
+      height: auto;
+      display: block;
+    }
+
+    .qr-tools {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .empty {
+      width: min(100%, 330px);
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      border: 2px dashed #c6ced8;
+      border-radius: 8px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.5;
+      padding: 18px;
+    }
+
+    .uri-wrap {
+      margin-top: 14px;
+      display: grid;
+      gap: 7px;
+    }
+
+    .uri-output {
+      min-height: 70px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #f8fafc;
+      color: #344054;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .note {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      place-items: center;
+      padding: 18px;
+      background: rgba(15, 23, 42, .72);
+      z-index: 20;
+    }
+
+    .modal.open {
+      display: grid;
+    }
+
+    .modal-inner {
+      width: min(94vw, 860px);
+      max-height: 94vh;
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .28);
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 800;
+    }
+
+    .modal-qr {
+      display: grid;
+      place-items: center;
+      overflow: auto;
+      background: #fff;
+    }
+
+    .modal-qr svg {
+      width: min(86vw, 780px);
+      height: auto;
+      display: block;
+    }
+
+    @media (max-width: 860px) {
+      .app {
+        width: min(100vw - 20px, 720px);
+        padding-top: 14px;
+      }
+
+      header {
+        display: grid;
+        align-items: start;
+      }
+
+      main,
+      .row {
+        grid-template-columns: 1fr;
+      }
+
+      .qr-panel {
+        position: static;
+      }
+
+      textarea {
+        min-height: 240px;
+      }
+
+      .qr-box {
+        min-height: 310px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>SMS QRコード作成</h1>
+        <div class="assist">PCで入力して、社内Androidスマホのカメラで読み取ります。</div>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel form-panel" aria-label="SMS入力">
+        <div class="field">
+          <label for="phone">電話番号</label>
+          <input id="phone" type="tel" inputmode="tel" autocomplete="off" placeholder="090-1234-5678" required>
+          <div class="assist">全角数字、ハイフン、空白は生成時に整えます。</div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="storeName">店舗名</label>
+            <input id="storeName" type="text" value="HondaCars奈良中央中和幹線橿原店">
+          </div>
+          <div class="field">
+            <label for="storeTel">店舗電話番号</label>
+            <input id="storeTel" type="text" value="0744-47-3888">
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="templateSelect">テンプレート</label>
+          <select id="templateSelect" aria-label="テンプレート">
+            <option value="">選択してください</option>
+            <option value="inspection">車検時期のご案内</option>
+            <option value="missed-call">車検案内のお電話後</option>
+            <option value="early-reservation">早めの車検予約案内</option>
+            <option value="slots-filling">車検予約枠のご案内</option>
+            <option value="reply-number">車検意向の番号返信</option>
+            <option value="inspection-detail">車検時期の詳細案内</option>
+            <option value="custom">オリジナル</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="message">SMS本文</label>
+          <textarea id="message" required placeholder="SMS本文を入力"></textarea>
+          <div class="meta-line">
+            <span id="charCount">0文字</span>
+            <span id="byteCount">0バイト</span>
+            <span id="smsEstimate">SMS 0通目安</span>
+            <span id="qrTextCount">QR内容 0文字</span>
+          </div>
+        </div>
+
+        <div id="status" class="status warn">電話番号と本文を入力してください。</div>
+
+        <div class="button-row">
+          <button id="makeButton" type="button">QRコードを作成</button>
+          <button id="saveCustomButton" class="secondary" type="button">オリジナル保存</button>
+          <button id="clearButton" class="secondary" type="button">入力をクリア</button>
+        </div>
+      </section>
+
+      <section class="panel qr-panel" aria-label="QRコード">
+        <div id="qrBox" class="qr-box">
+          <div class="empty">ここにQRコードが表示されます</div>
+        </div>
+        <div class="qr-tools">
+          <span id="qrInfo">QR未作成</span>
+          <button id="zoomButton" class="secondary" type="button" disabled>QRを拡大</button>
+        </div>
+
+        <div class="uri-wrap">
+          <div class="meta-line">
+            <strong>QRに入る内容</strong>
+            <button id="copyButton" class="secondary" type="button" disabled>コピー</button>
+          </div>
+          <div id="uriOutput" class="uri-output" aria-live="polite"></div>
+        </div>
+
+      </section>
+    </main>
+  </div>
+
+  <div id="qrModal" class="modal" aria-hidden="true">
+    <div class="modal-inner" role="dialog" aria-label="拡大QRコード">
+      <div class="modal-head">
+        <span>拡大QRコード</span>
+        <button id="closeZoomButton" class="secondary" type="button">閉じる</button>
+      </div>
+      <div id="modalQr" class="modal-qr"></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
+
+      var phoneInput = document.getElementById("phone");
+      var storeNameInput = document.getElementById("storeName");
+      var storeTelInput = document.getElementById("storeTel");
+      var templateSelect = document.getElementById("templateSelect");
+      var messageInput = document.getElementById("message");
+      var charCount = document.getElementById("charCount");
+      var byteCount = document.getElementById("byteCount");
+      var smsEstimate = document.getElementById("smsEstimate");
+      var qrTextCount = document.getElementById("qrTextCount");
+      var statusBox = document.getElementById("status");
+      var qrBox = document.getElementById("qrBox");
+      var qrInfo = document.getElementById("qrInfo");
+      var uriOutput = document.getElementById("uriOutput");
+      var makeButton = document.getElementById("makeButton");
+      var saveCustomButton = document.getElementById("saveCustomButton");
+      var clearButton = document.getElementById("clearButton");
+      var copyButton = document.getElementById("copyButton");
+      var zoomButton = document.getElementById("zoomButton");
+      var qrModal = document.getElementById("qrModal");
+      var modalQr = document.getElementById("modalQr");
+      var closeZoomButton = document.getElementById("closeZoomButton");
+      var lastUri = "";
+      var lastSvg = "";
+      var settingsKey = "smsQrStoreSettings";
+      var customTemplateKey = "smsQrCustomTemplate";
+      var reservationUrl = "https://www.hondanet-kinki.jp/maintenance/reservation.html";
+      var templates = {
+        inspection: "【{storeName}】\n\n〇〇様\n\nいつもご利用ありがとうございます。\n\nお車の車検時期が近づいてまいりました。\n\nお見積り・ご相談は無料です。\n\n☎ TEL：{storeTel}\n\nオンライン予約はこちら\n\n{reservationUrl}\n\n何卒よろしくお願いいたします。",
+        "missed-call": "【{storeName}】\n\n〇〇様\n\n本日、お車の車検のご案内でお電話いたしました。\n\nご都合のよろしい時にご連絡ください。\n\n☎ TEL：{storeTel}\n\nオンライン予約はこちら\n\n{reservationUrl}\n\n何卒よろしくお願いいたします。",
+        "early-reservation": "【{storeName}】\n\n〇〇様\n\nお車の車検時期が近づいております。\n\nお早めのご予約で、ご希望の日程をご案内しやすくなります。\n\n☎ TEL：{storeTel}\n\nオンライン予約はこちら\n{reservationUrl}\n\n何卒よろしくお願いいたします。",
+        "slots-filling": "【{storeName}】\n\n〇〇様\n\n車検予約枠が埋まり始めております。\n\nお早めのご予約をおすすめいたします。\n\n☎ TEL：{storeTel}\n\nオンライン予約はこちら\n{reservationUrl}\n\n何卒よろしくお願いいたします。",
+        "reply-number": "【{storeName}】\n\n〇〇様\n\n車検についてお伺いします。\n\n① 当店で予約予定\n\n② 検討中\n\n③ 乗り換え予定\n\n④ 手放し済み\n\n番号のみご返信いただけますと幸いです。\n\n☎ TEL：{storeTel}\n\nオンライン予約はこちら\n{reservationUrl}\n\n何卒よろしくお願いいたします。",
+        "inspection-detail": "【{storeName}】\n\n〇〇様\n\nいつもご利用ありがとうございます。\n\nお車の車検時期が近づいてまいりました。\n\nお見積り・ご相談は無料です。\n\nご希望日がお決まりでしたら、お電話でもご予約を承っております。\n\nお気軽にお問い合わせください。\n\n☎ TEL：{storeTel}\n\nオンライン予約はこちら\n\n{reservationUrl}\n\n何卒よろしくお願いいたします。"
+      };
+
+      function loadStoreSettings() {
+        try {
+          var stored = JSON.parse(localStorage.getItem(settingsKey) || "{}");
+          if (stored.storeName) {
+            storeNameInput.value = stored.storeName;
+          }
+          if (stored.storeTel) {
+            storeTelInput.value = stored.storeTel;
+          }
+        } catch (error) {
+          // Ignore invalid local settings.
+        }
+      }
+
+      function saveStoreSettings() {
+        try {
+          localStorage.setItem(settingsKey, JSON.stringify({
+            storeName: storeNameInput.value.trim(),
+            storeTel: storeTelInput.value.trim()
+          }));
+        } catch (error) {
+          // Local storage may be disabled.
+        }
+      }
+
+      function renderTemplate(template) {
+        return template
+          .replaceAll("{storeName}", storeNameInput.value.trim() || "HondaCars奈良中央中和幹線橿原店")
+          .replaceAll("{storeTel}", storeTelInput.value.trim() || "0744-47-3888")
+          .replaceAll("{reservationUrl}", reservationUrl);
+      }
+
+      function normalizePhone(value) {
+        return value
+          .replace(/[０-９]/g, function (char) {
+            return String.fromCharCode(char.charCodeAt(0) - 0xFEE0);
+          })
+          .replace(/[－ー―‐‑–—]/g, "-")
+          .replace(/[\s\u3000-]/g, "");
+      }
+
+      function countChars(value) {
+        return Array.from(value).length;
+      }
+
+      function countBytes(value) {
+        return new TextEncoder().encode(value).length;
+      }
+
+      function toRecipient(phone) {
+        return phone;
+      }
+
+      function estimateSmsParts(message) {
+        var length = countChars(message);
+        if (length === 0) {
+          return 0;
+        }
+        if (length <= 70) {
+          return 1;
+        }
+        return Math.ceil(length / 67);
+      }
+
+      function needsMessage() {
+        return true;
+      }
+
+      function normalizeNewlines(message) {
+        var normalized = message.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        return normalized;
+      }
+
+      function getQrMessage(message) {
+        return normalizeNewlines(message);
+      }
+
+      function validate(phone, message) {
+        if (!phone && needsMessage() && !message.trim()) {
+          return { ok: false, text: "電話番号と本文を入力してください。" };
+        }
+        if (!/^0[789]0\d{8}$/.test(phone)) {
+          return { ok: false, text: "電話番号は070/080/090から始まる11桁で入力してください。" };
+        }
+        if (needsMessage() && !message.trim()) {
+          return { ok: false, text: "SMS本文を入力してください。" };
+        }
+        if (!needsMessage()) {
+          return { ok: true, text: "本文なしの起動確認QRを作成できます。" };
+        }
+        return { ok: true, text: "本文付きQRコードを作成できます。" };
+      }
+
+      function buildUri(phone, message) {
+        var recipient = toRecipient(phone);
+        return "SMSTO:" + recipient + ":" + message;
+      }
+
+      function setStatus(kind, text) {
+        statusBox.className = "status " + kind;
+        statusBox.textContent = text;
+      }
+
+      function updateInfo() {
+        var phone = normalizePhone(phoneInput.value);
+        var message = messageInput.value;
+        var qrMessage = getQrMessage(message);
+        var chars = countChars(message);
+        var bytes = countBytes(message);
+        var parts = estimateSmsParts(message);
+        var result = validate(phone, message);
+
+        charCount.textContent = chars.toLocaleString("ja-JP") + "文字";
+        byteCount.textContent = bytes.toLocaleString("ja-JP") + "バイト";
+        smsEstimate.textContent = "SMS " + parts.toLocaleString("ja-JP") + "通目安";
+        qrTextCount.textContent = "QR内容 " + countChars(buildUri(phone, qrMessage)).toLocaleString("ja-JP") + "文字";
+        setStatus(result.ok ? "ok" : "warn", result.text);
+
+        if (result.ok && parts >= 4) {
+          setStatus("warn", "本文が長めです。読めない時は「QRを拡大」を使うか、本文を短くしてください。");
+        }
+
+        if (lastUri) {
+          uriOutput.textContent = buildUri(phone, qrMessage);
+        }
+      }
+
+      function renderQr() {
+        var phone = normalizePhone(phoneInput.value);
+        var message = messageInput.value;
+        var qrMessage = getQrMessage(message);
+        var result = validate(phone, message);
+
+        if (!result.ok) {
+          setStatus("bad", result.text);
+          return;
+        }
+
+        phoneInput.value = phone;
+        var uri = buildUri(phone, qrMessage);
+
+        try {
+          var qr = qrcode(0, "L");
+          qr.addData(uri, "Byte");
+          qr.make();
+          var moduleCount = qr.getModuleCount();
+          var svg = qr.createSvgTag({
+            cellSize: 8,
+            margin: 4,
+            scalable: true
+          });
+          qrBox.innerHTML = svg;
+          lastUri = uri;
+          lastSvg = svg;
+          uriOutput.textContent = uri;
+          copyButton.disabled = false;
+          zoomButton.disabled = false;
+          qrInfo.textContent = "QR " + moduleCount + " x " + moduleCount + "セル";
+          if (moduleCount >= 120) {
+            setStatus("warn", "長文でQRが細かめです。「QRを拡大」を押してからスマホで読み取ってください。");
+          } else {
+            setStatus("ok", "QRコードを作成しました。スマホのカメラで読み取ってください。");
+          }
+        } catch (error) {
+          setStatus("bad", "本文が長すぎてQRコードに入りません。本文を短くしてください。");
+        }
+      }
+
+      function clearAll() {
+        phoneInput.value = "";
+        templateSelect.value = "";
+        messageInput.value = "";
+        lastUri = "";
+        lastSvg = "";
+        uriOutput.textContent = "";
+        copyButton.disabled = true;
+        zoomButton.disabled = true;
+        qrInfo.textContent = "QR未作成";
+        qrBox.innerHTML = '<div class="empty">ここにQRコードが表示されます</div>';
+        updateInfo();
+        phoneInput.focus();
+      }
+
+      function copyUri() {
+        if (!lastUri || !navigator.clipboard) {
+          return;
+        }
+        navigator.clipboard.writeText(lastUri).then(function () {
+          setStatus("ok", "QRに入る内容をコピーしました。");
+        }, function () {
+          setStatus("warn", "コピーできませんでした。表示欄から選択してコピーしてください。");
+        });
+      }
+
+      function saveCustomTemplate() {
+        if (!messageInput.value.trim()) {
+          setStatus("warn", "保存する本文を入力してください。");
+          return;
+        }
+        try {
+          localStorage.setItem(customTemplateKey, messageInput.value);
+          templateSelect.value = "custom";
+          setStatus("ok", "オリジナルテンプレートをこの端末に保存しました。");
+        } catch (error) {
+          setStatus("bad", "端末内に保存できませんでした。ブラウザの保存設定を確認してください。");
+        }
+      }
+
+      function applyTemplate() {
+        if (!templateSelect.value) {
+          return;
+        }
+        if (templateSelect.value === "custom") {
+          messageInput.value = localStorage.getItem(customTemplateKey) || "";
+        } else {
+          messageInput.value = renderTemplate(templates[templateSelect.value] || "");
+        }
+        updateInfo();
+        if (normalizePhone(phoneInput.value)) {
+          renderQr();
+        }
+      }
+
+      function openZoom() {
+        if (!lastSvg) {
+          return;
+        }
+        modalQr.innerHTML = lastSvg;
+        qrModal.classList.add("open");
+        qrModal.setAttribute("aria-hidden", "false");
+      }
+
+      function closeZoom() {
+        qrModal.classList.remove("open");
+        qrModal.setAttribute("aria-hidden", "true");
+      }
+
+      phoneInput.addEventListener("input", updateInfo);
+      templateSelect.addEventListener("change", applyTemplate);
+      messageInput.addEventListener("input", updateInfo);
+      storeNameInput.addEventListener("input", function () {
+        saveStoreSettings();
+        if (templateSelect.value && templateSelect.value !== "custom") {
+          applyTemplate();
+        }
+      });
+      storeTelInput.addEventListener("input", function () {
+        saveStoreSettings();
+        if (templateSelect.value && templateSelect.value !== "custom") {
+          applyTemplate();
+        }
+      });
+      makeButton.addEventListener("click", renderQr);
+      saveCustomButton.addEventListener("click", saveCustomTemplate);
+      clearButton.addEventListener("click", clearAll);
+      copyButton.addEventListener("click", copyUri);
+      zoomButton.addEventListener("click", openZoom);
+      closeZoomButton.addEventListener("click", closeZoom);
+      qrModal.addEventListener("click", function (event) {
+        if (event.target === qrModal) {
+          closeZoom();
+        }
+      });
+      messageInput.addEventListener("keydown", function (event) {
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+          renderQr();
+        }
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          closeZoom();
+        }
+      });
+
+      loadStoreSettings();
+      updateInfo();
+    }());
+  </script>
+</body>
+</html>
